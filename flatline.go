@@ -34,6 +34,32 @@ type Message struct {
 	Content        User
 }
 
+func sendMessage(message Message) {
+	conn, err := net.Dial("tcp", "127.0.0.1:1313")
+	if err != nil {
+		log.Fatal("Failed to connect to server:", err)
+	}
+	defer conn.Close()
+	jsonMsg, err := json.Marshal(message)
+	if err != nil {
+		log.Fatal("Failed to encode JSON:", err)
+	}
+
+	// Send message
+	writer := bufio.NewWriter(conn)
+	writer.Write(jsonMsg)
+	writer.WriteByte('\n') // Ensure message is properly terminated
+	writer.Flush()
+	// Read response
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatal("Failed to read response:", err)
+	}
+
+	log.Printf("Received: %s", response)
+}
+
 func createUser(message Message) *sql.Rows {
 	connStr := "user=pqgotest dbname=pqgotest sslmode=verify-full"
 	db, err := sql.Open("postgres", connStr)
@@ -51,7 +77,7 @@ func federateInstitution(message Message) *sql.Rows {
 	if err != nil {
 		log.Fatal(err)
 	}
-	rows, err := db.Query("INSERT INTO users VALUES ($1, $2, $3)",
+	rows, err := db.Query("INSERT INTO federatedInstitutions VALUES ($1, $2, $3)",
 		message.Content.FirstName, message.Content.LastName)
 	return rows
 }
