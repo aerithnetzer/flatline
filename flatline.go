@@ -45,6 +45,17 @@ func createUser(message Message) *sql.Rows {
 	return rows
 }
 
+func federateInstitution(message Message) *sql.Rows {
+	connStr := "user=pqgotest dbname=pqgotest sslmode=verify-full"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rows, err := db.Query("INSERT INTO users VALUES ($1, $2, $3)",
+		message.Content.FirstName, message.Content.LastName)
+	return rows
+}
+
 func handleMessage(message []byte) {
 	var v Message
 	err := json.Unmarshal(message, &v)
@@ -59,6 +70,10 @@ func handleMessage(message []byte) {
 		createUser(v)
 	case "CREATE_INSTITUTION":
 		log.Printf("RECEIVED CREATE_INSTITUTION COMMAND")
+
+	case "FEDERATE_INSTITUTION":
+		log.Printf("RECEIVED")
+		federateInstitution(v)
 	}
 	log.Printf("Processed message: %s", message)
 }
