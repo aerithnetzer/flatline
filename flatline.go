@@ -31,55 +31,57 @@ type User struct {
 type Message struct {
 	Authentication string
 	MessageType    string
-	Content        User
+	Content        []byte
 }
 
-func sendMessage(message Message) {
-	conn, err := net.Dial("tcp", "127.0.0.1:1313")
-	if err != nil {
-		log.Fatal("Failed to connect to server:", err)
-	}
-	defer conn.Close()
-	jsonMsg, err := json.Marshal(message)
-	if err != nil {
-		log.Fatal("Failed to encode JSON:", err)
-	}
-
-	// Send message
-	writer := bufio.NewWriter(conn)
-	writer.Write(jsonMsg)
-	writer.WriteByte('\n') // Ensure message is properly terminated
-	writer.Flush()
-	// Read response
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		log.Fatal("Failed to read response:", err)
-	}
-
-	log.Printf("Received: %s", response)
+type SearchMessage struct {
+	Authentication string
+	MessageType    string
+	Content        string
 }
 
-func createUser(message Message) *sql.Rows {
+func connctToDB() (*sql.DB, error) {
 	connStr := "user=pqgotest dbname=pqgotest sslmode=verify-full"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	rows, err := db.Query("INSERT INTO users VALUES ($1, $2, $3)",
-		message.Content.FirstName, message.Content.LastName)
-	return rows
+	return db, err
 }
 
-func federateInstitution(message Message) *sql.Rows {
-	connStr := "user=pqgotest dbname=pqgotest sslmode=verify-full"
-	db, err := sql.Open("postgres", connStr)
+func createUser(message Message) []*sql.Rows {
+	db, err := connctToDB()
 	if err != nil {
 		log.Fatal(err)
 	}
-	rows, err := db.Query("INSERT INTO federatedInstitutions VALUES ($1, $2, $3)",
-		message.Content.FirstName, message.Content.LastName)
-	return rows
+
+	type Content struct {
+		FirstName     string
+		LastName      string
+		InstitutionID int16
+	}
+
+	var content []Content
+
+	unmarshalerr := json.Unmarshal(message.Content, &content)
+
+	if unmarshalerr != nil {
+		fmt.Println("ERROR")
+	}
+	var success_rows []*sql.Rows
+	for _, v := range content {
+		rows, qerr := db.Query("INSERT INTO users VALUES ($1, $2, $3)",
+			v.FirstName, v.LastName, v.InstitutionID)
+		if qerr != nil {
+			log.Fatal(qerr)
+		}
+		success_rows = append(success_rows, rows)
+	}
+
+	return success_rows
+}
+
+func searchDatabases(message Message) {
 }
 
 func handleMessage(message []byte) {
@@ -96,10 +98,8 @@ func handleMessage(message []byte) {
 		createUser(v)
 	case "CREATE_INSTITUTION":
 		log.Printf("RECEIVED CREATE_INSTITUTION COMMAND")
-
 	case "FEDERATE_INSTITUTION":
 		log.Printf("RECEIVED")
-		federateInstitution(v)
 	}
 	log.Printf("Processed message: %s", message)
 }

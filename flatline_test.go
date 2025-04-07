@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+type CreateUser struct {
+	FirstName     string
+	LastName      string
+	InstitutionID string
+}
+
 type TestMessage struct {
 	Authentication string `json:"Authentication"`
 	MessageType    string `json:"MessageType"`
