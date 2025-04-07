@@ -84,6 +84,72 @@ func createUser(message Message) []*sql.Rows {
 func searchDatabases(message Message) {
 }
 
+func requestFederateInstitution(message Message) []*sql.Rows {
+	db, err := connctToDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	type Content struct {
+		requestingInstitution int16
+		myIP                  net.IP
+		isSent                bool
+	}
+
+	var content []Content
+
+	unmarshalerr := json.Unmarshal(message.Content, &content)
+
+	if unmarshalerr != nil {
+		fmt.Println("ERROR")
+	}
+	var success_rows []*sql.Rows
+	for _, v := range content {
+		rows, qerr := db.Query("INSERT INTO users VALUES ($1, $2, $3)",
+			v.requestingInstitution, v.myIP, v.isSent)
+		if qerr != nil {
+			log.Fatal(qerr)
+		}
+		success_rows = append(success_rows, rows)
+	}
+
+	return success_rows
+}
+
+func acceptFederateinstitution(message Message) []*sql.Rows {
+	// Accepts handshake with institution and begins sending federation traffic to the IP
+
+	db, err := connctToDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	type Content struct {
+		requestingInstitution int16
+		myIP                  net.IP
+		isSent                bool
+	}
+
+	var content []Content
+
+	unmarshalerr := json.Unmarshal(message.Content, &content)
+
+	if unmarshalerr != nil {
+		fmt.Println("ERROR")
+	}
+	var success_rows []*sql.Rows
+	for _, v := range content {
+		rows, qerr := db.Query("INSERT INTO users VALUES ($1, $2, $3)",
+			v.requestingInstitution, v.myIP, v.isSent)
+		if qerr != nil {
+			log.Fatal(qerr)
+		}
+		success_rows = append(success_rows, rows)
+	}
+
+	return success_rows
+}
+
 func handleMessage(message []byte) {
 	var v Message
 	err := json.Unmarshal(message, &v)
@@ -98,8 +164,11 @@ func handleMessage(message []byte) {
 		createUser(v)
 	case "CREATE_INSTITUTION":
 		log.Printf("RECEIVED CREATE_INSTITUTION COMMAND")
-	case "FEDERATE_INSTITUTION":
+	case "REQUEST_FEDERATE_INSTITUTION":
 		log.Printf("RECEIVED")
+	case "ACCEPT_FEDERATE_INSTITUTION":
+		log.Printf("ACCEPTED")
+
 	}
 	log.Printf("Processed message: %s", message)
 }
